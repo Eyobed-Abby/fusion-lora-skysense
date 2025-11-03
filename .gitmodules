@@ -1,0 +1,3 @@
+[submodule "external/skysense_o"]
+	path = external/skysense_o
+	url = https://github.com/zqcrafts/SkySense-O.git
