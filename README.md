@@ -105,18 +105,20 @@ feature branches → each teammate works here
 # create your own branch
 ```bash
 git checkout -b feature/tokenizer-update
-
+```
 # make changes, commit locally
+```bash
 git add .
 git commit -m "Implement spectral tokenizer"
-
+```
 # push your branch to GitHub
+```bash
 git push origin feature/tokenizer-update
-
+```
 4️⃣ Pull Request (PR)
 
 Once your task is done, open a Pull Request (PR) to main.
 
 The project lead (Winner Abula) will review, test, and merge.
 
-Do not push directly to main.
+Please don't push directly to main.
