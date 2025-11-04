@@ -20,7 +20,7 @@ The goal is to achieve **parameter-efficient domain adaptation** on datasets suc
 ```
 fusion-lora-skysense/
 │
-├─ external/skysense_o/ # SkySense-O submodule (keep untouched)
+├─ external/skysense_o/ # SkySense-O submodule (kept untouched)
 │
 ├─ fusion_lora/ # Fusion-LoRA implementation
 │ ├─ model_wrapper.py # main wrapper combining tokenizer + LoRA + fusion
