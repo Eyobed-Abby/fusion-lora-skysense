@@ -17,6 +17,7 @@ The goal is to achieve **parameter-efficient domain adaptation** on datasets suc
 ---
 
 ## 🧱 Repository Structure
+```
 fusion-lora-skysense/
 │
 ├─ external/skysense_o/ # SkySense-O submodule (keep untouched)
@@ -53,8 +54,7 @@ fusion-lora-skysense/
 ├─ .gitignore
 ├─ requirements.txt
 └─ README.md
-
-
+```
 ---
 
 ## ⚙️ Environment Setup
