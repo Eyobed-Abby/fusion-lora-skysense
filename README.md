@@ -68,10 +68,11 @@ fusion-lora-skysense/
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+```
 3. Verify setup:
 ```bash
    python train_scripts/train_fusion_lora.py
-
+```
 🛰️ Dataset Preparation
 
 Use EuroSAT-MS or BigEarthNet-S2 Sentinel-2 tiles
@@ -82,7 +83,7 @@ Save tensors under:
 ```bash
 datasets/eurosat_ms/train_tensors/
 datasets/eurosat_ms/test_tensors/
-
+```
 Development Workflow (for all contributors)
 1️⃣ Branch Naming Convention
 
