@@ -12,7 +12,7 @@ We introduce:
 - 🔒 **LoRA adapters** – lightweight fine-tuning of the frozen Swin-V2 visual encoder  
 - ⚙️ **Gated Late Fusion (GLF)** – merges representations before decoding  
 
-The goal is to achieve **parameter-efficient domain adaptation** on datasets such as EuroSAT-MS or BigEarthNet-S2, within a compact fine-tuning setup suitable for ICIP-level experiments.
+The goal is to achieve **parameter-efficient domain adaptation** on datasets such as EuroSAT-MS or BigEarthNet-S2, within a compact fine-tuning setup.
 
 ---
 
@@ -64,14 +64,13 @@ fusion-lora-skysense/
    cd fusion-lora-skysense
 
 2. Create virtual environment:
-
-   python -m venv .venv
+```bash
+python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 3. Verify setup:
-
+```bash
    python train_scripts/train_fusion_lora.py
-
 
 🛰️ Dataset Preparation
 
@@ -80,6 +79,7 @@ Use EuroSAT-MS or BigEarthNet-S2 Sentinel-2 tiles
 Each sample: [6, 256, 256] (float32, normalized to [0–1])
 
 Save tensors under:
+```bash
 datasets/eurosat_ms/train_tensors/
 datasets/eurosat_ms/test_tensors/
 
@@ -102,6 +102,7 @@ feature branches → each teammate works here
 
 3️⃣ Steps for Each Member
 # create your own branch
+```bash
 git checkout -b feature/tokenizer-update
 
 # make changes, commit locally
