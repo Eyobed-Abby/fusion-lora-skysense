@@ -4,8 +4,9 @@ __pycache__/
 venv/
 .vscode/
 .idea/
-datasets/**/*
-!datasets/config.json
+datasets/datasets/eurosat_ms/
+datasets/logs/
+datasets/EuroSAT_MS/
 results/logs/
 results/checkpoints/
 *.pt
