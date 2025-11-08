@@ -82,8 +82,14 @@ def process_split(split_dir: Path, out_dir: Path, size: int, overwrite: bool):
 
         out_pt = out_dir / f"{sd.name}.pt"   # sample_xxxxx.pt
         if out_pt.exists() and not overwrite:
-            print(f"✓ {out_pt.name} (exists)")
-            continue
+            try:
+                test_load = torch.load(out_pt, map_location="cpu")
+                if test_load.shape[0] == 6:
+                    print(f"✓ {out_pt.name} (exists)")
+                    continue
+            except Exception:
+                print(f"⚠️  {out_pt.name} corrupted, recreating...")
+                out_pt.unlink()
 
         X = load_sample_dir(sd, target_size=size)   # [6,S,S]
         torch.save(X, out_pt)
