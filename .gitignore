@@ -7,6 +7,8 @@ venv/
 datasets/datasets/eurosat_ms/
 datasets/logs/
 datasets/EuroSAT_MS/
+datasets/BigEarthNet-S2/
+datasets/BigEarthNet-S2.tar.zst
 results/logs/
 results/checkpoints/
 *.pt
