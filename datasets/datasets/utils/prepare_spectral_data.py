@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+"""
+BigEarthNet-S2 Spectral Data Preparation
+
+Processes BigEarthNet-S2 satellite imagery:
+- Loads 6 spectral bands (B02, B03, B04, B08, B11, B12)
+- Stacks to [6, H, W] tensor
+- Normalizes reflectance: img / 10000.0
+- Resizes to 256x256 (default)
+- Saves as .pt tensors
+"""
 import argparse
 from pathlib import Path
 import numpy as np
@@ -21,7 +31,7 @@ def upsample_to_ref(arr, src_transform, crs, ref_shape, ref_transform):
         src_crs=crs,
         dst_transform=ref_transform,
         dst_crs=crs,
-        resampling=Resampling.bilinear
+        resampling=Resampling.bilinear 
     )
     return out
 
@@ -80,29 +90,39 @@ def process_split(split_dir: Path, out_dir: Path, size: int, overwrite: bool):
         print(f"✓ Saved {out_pt.name}  shape={tuple(X.shape)}  range=({X.min().item():.3f},{X.max().item():.3f})")
 
 def main():
-    ap = argparse.ArgumentParser(description="Prepare EuroSAT-MS per-sample tensors [6,H,W].")
-    ap.add_argument("--size", type=int, default=256, help="Output tile size (256 or 512). Default: 256")
+    ap = argparse.ArgumentParser(description="Prepare BigEarthNet-S2 per-sample tensors [6,H,W].")
+    ap.add_argument("--size", type=int, default=256, help="Output tile size (default: 256)")
     ap.add_argument("--overwrite", action="store_true", help="Overwrite existing .pt files")
     args = ap.parse_args()
 
-    # project_root = <repo root>  (this file lives in datasets/utils/)
     project_root = Path(__file__).resolve().parents[2]
-    ds_root = project_root / "datasets" / "eurosat_ms"
+    ds_root = project_root / "datasets" / "bigearthnet_s2"
 
     train_in = ds_root / "train"
-    test_in  = ds_root / "test"
+    val_in = ds_root / "validation"
+    test_in = ds_root / "test"
+    
     train_out = ds_root / "train_tensors"
-    test_out  = ds_root / "test_tensors"
+    val_out = ds_root / "validation_tensors"
+    test_out = ds_root / "test_tensors"
 
     print(f"Project root: {project_root}")
+    print(f"Dataset: BigEarthNet-S2")
     print(f"Preparing tensors at size {args.size}x{args.size}")
+    print(f"Band order: R,G,B,NIR,SWIR1,SWIR2")
+    print(f"Normalization: reflectance / 10000.0")
 
     if train_in.exists():
         print(f"\n-- Train --")
         process_split(train_in, train_out, size=args.size, overwrite=args.overwrite)
+    
+    if val_in.exists():
+        print(f"\n-- Validation --")
+        process_split(val_in, val_out, size=args.size, overwrite=args.overwrite)
+    
     if test_in.exists():
         print(f"\n-- Test --")
-        process_split(test_in,  test_out,  size=args.size, overwrite=args.overwrite)
+        process_split(test_in, test_out, size=args.size, overwrite=args.overwrite)
 
 if __name__ == "__main__":
     main()
