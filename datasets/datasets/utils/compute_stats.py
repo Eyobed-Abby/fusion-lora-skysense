@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
+"""
+Compute Dataset Statistics for BigEarthNet-S2
+
+Calculates per-channel mean and standard deviation from training tensors.
+Results are saved to datasets/config.json for normalization during training.
+"""
 import json
 from pathlib import Path
 import torch
 
-SECTION = "eurosat_ms"
+SECTION = "bigearthnet_s2"
 CHANNEL_ORDER = ["B04","B03","B02","B08","B11","B12"]  # R,G,B,NIR,SWIR1,SWIR2
 
 def compute_stats(pt_dir: Path, limit: int = 0):
@@ -33,9 +39,12 @@ def compute_stats(pt_dir: Path, limit: int = 0):
 
 def main():
     project_root = Path(__file__).resolve().parents[2]
-    ds_root = project_root / "datasets" / "eurosat_ms"
+    ds_root = project_root / "datasets" / "bigearthnet_s2"
     train_pt = ds_root / "train_tensors"
 
+    print(f"Computing statistics for BigEarthNet-S2...")
+    print(f"Reading tensors from: {train_pt}")
+    
     mean, std, h, w = compute_stats(train_pt, limit=0)
 
     cfg_path = project_root / "datasets" / "config.json"
