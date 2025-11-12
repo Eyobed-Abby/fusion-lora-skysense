@@ -5,6 +5,7 @@ venv/
 .vscode/
 .idea/
 datasets/datasets/eurosat_ms/
+datasets/datasets/bigearthnet_s2/
 datasets/logs/
 datasets/EuroSAT_MS/
 datasets/BigEarthNet-S2/
