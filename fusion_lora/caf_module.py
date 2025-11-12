@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from fusion_lora.lora_layers import LoRALinear
+from fusion_lora.lora_layers import LoRALayer
 
 class CrossAttentionFusion(nn.Module):
     def __init__(self, embed_dim, num_heads=8, lora_rank=8):
@@ -13,10 +13,10 @@ class CrossAttentionFusion(nn.Module):
         self.scale = self.head_dim ** -0.5
 
         # LoRA-enabled projections
-        self.q_proj = LoRALinear(embed_dim, embed_dim, r=lora_rank)
-        self.k_proj = LoRALinear(embed_dim, embed_dim, r=lora_rank)
-        self.v_proj = LoRALinear(embed_dim, embed_dim, r=lora_rank)
-        self.out_proj = LoRALinear(embed_dim, embed_dim, r=lora_rank)
+        self.q_proj = LoRALayer(embed_dim, embed_dim, r=lora_rank)
+        self.k_proj = LoRALayer(embed_dim, embed_dim, r=lora_rank)
+        self.v_proj = LoRALayer(embed_dim, embed_dim, r=lora_rank)
+        self.out_proj = LoRALayer(embed_dim, embed_dim, r=lora_rank)
 
         self.norm1 = nn.LayerNorm(embed_dim)
         self.norm2 = nn.LayerNorm(embed_dim)
