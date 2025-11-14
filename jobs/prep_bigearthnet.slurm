@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=prep_benet_s2
-#SBATCH --account=RIG-2024-068
+#SBATCH --account=kuin0137
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16        # use many CPUs for rasterio & tif loading
