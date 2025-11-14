@@ -101,7 +101,7 @@ def main():
     ap.add_argument("--overwrite", action="store_true", help="Overwrite existing .pt files")
     args = ap.parse_args()
 
-    project_root = Path(__file__).resolve().parents[2]
+    project_root = Path(__file__).resolve().parents[3]
     ds_root = project_root / "datasets" / "bigearthnet_s2"
 
     train_in = ds_root / "train"

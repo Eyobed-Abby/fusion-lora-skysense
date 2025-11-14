@@ -38,7 +38,7 @@ def compute_stats(pt_dir: Path, limit: int = 0):
     return mean.tolist(), std.tolist(), H, W
 
 def main():
-    project_root = Path(__file__).resolve().parents[2]
+    project_root = Path(__file__).resolve().parents[3]
     ds_root = project_root / "datasets" / "bigearthnet_s2"
     train_pt = ds_root / "train_tensors"
 
