@@ -24,6 +24,8 @@ module load miniconda/3
 
 # OPTIONAL: If you have a conda env for this project:
 # conda activate fusionlora
+PY=/dpc/kuin0137/envs/fusionlora/bin/python
+
 
 # -----------------------------
 # 2) Move to project directory
