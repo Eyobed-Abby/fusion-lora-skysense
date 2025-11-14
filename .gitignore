@@ -4,12 +4,12 @@ __pycache__/
 venv/
 .vscode/
 .idea/
-datasets/datasets/eurosat_ms/
-datasets/datasets/bigearthnet_s2/
+datasets/bigearthnet_s2/
+datasets/bigearthnet_s2
+datasets/bigearthnet_s2_*.tar.gz
+datasets/bigearthnet_s2/*_tensors/
+datasets/bigearthnet_s2/**/*.pt
 datasets/logs/
-datasets/EuroSAT_MS/
-datasets/BigEarthNet-S2/
-datasets/BigEarthNet-S2.tar.zst
 results/logs/
 results/checkpoints/
 *.pt
@@ -17,3 +17,5 @@ results/checkpoints/
 *.ckpt
 Thumbs.db
 .DS_Store
+datasets/bigearthnet_s2
+datasets/bigearthnet_s2_100k.tar.gz
