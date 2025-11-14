@@ -46,7 +46,7 @@ python datasets/datasets/utils/prepare_spectral_data.py --size 256 --overwrite
 echo
 echo "Computing dataset statistics..."
 
-python datasets/utils/compute_stats.py
+python datasets/datasets/utils/compute_stats.py
 
 echo
 echo "Finish time: $(date)"
