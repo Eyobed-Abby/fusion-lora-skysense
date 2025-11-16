@@ -8,10 +8,21 @@ from torch.nn import functional as F
 from detectron2.config import get_cfg
 
 # Path to external/skysense_o
+# THIS_DIR = Path(__file__).resolve().parent
+# ROOT = THIS_DIR.parent
+# EXTERNAL_DIR = ROOT / "external" / "skysense_o"
+# sys.path.insert(0, str(EXTERNAL_DIR / "skysense_o"))
+
 THIS_DIR = Path(__file__).resolve().parent
 ROOT = THIS_DIR.parent
-EXTERNAL_DIR = ROOT / "external" / "skysense_o"
-sys.path.insert(0, str(EXTERNAL_DIR / "skysense_o"))
+
+EXTERNAL_ROOT = ROOT / "external" / "skysense_o"
+SKYSENSE_INNER = EXTERNAL_ROOT / "skysense_o"   # <-- inner package
+
+# Add inner package to sys.path so we can import `modeling.backbone...`
+sys.path.insert(0, str(SKYSENSE_INNER))
+
+
 
 from external.skysense_o.skysense_o.modeling.backbone.skysense_clip import SkySenseCLIP
 from fusion_lora.spectral_tokenizer import SpectralTokenizer
@@ -19,7 +30,7 @@ from fusion_lora.spectral_tokenizer import SpectralTokenizer
 
 def build_skysense_clip():
     cfg = get_cfg()
-    cfg.merge_from_file(str(EXTERNAL_DIR / "configs" / "skysense_o.yaml"))
+    cfg.merge_from_file(str(EXTERNAL_ROOT / "configs" / "skysense_o.yaml"))
     cfg.freeze()
     model = SkySenseCLIP(cfg)
     return model, cfg
