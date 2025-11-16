@@ -15,6 +15,9 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from detectron2.data import MetadataCatalog
 
+#added by fusion-lora-skysense
+from fusion_lora.spectral_tokenizer import SpectralTokenizer
+
 
 @META_ARCH_REGISTRY.register()
 class SkySenseO(nn.Module):
@@ -45,7 +48,13 @@ class SkySenseO(nn.Module):
         self.size_divisibility = size_divisibility
         self.register_buffer("clip_pixel_mean", torch.Tensor(clip_pixel_mean).view(-1, 1, 1), False)
         self.register_buffer("clip_pixel_std", torch.Tensor(clip_pixel_std).view(-1, 1, 1), False)
-        
+        #added by fusion-lora-skysense
+        # Spectral → pseudo-RGB tokenizer (6 bands → 3 channels)
+        # Assumes batched_inputs["image"] is [6, H, W] spectral data
+        self.spectral_tokenizer = SpectralTokenizer(in_channels=6, out_dim=3)
+
+
+
         # Input Text Config
         self.test_class_texts = {}
         self.retrived_texts = {}
@@ -174,10 +183,26 @@ class SkySenseO(nn.Module):
         if not self.training and self.sliding_window:
             return self.inference_sliding_window(batched_inputs)
         # Image Preprocessing
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        clip_images = [(x - self.clip_pixel_mean) / self.clip_pixel_std for x in images]
-        clip_images = ImageList.from_tensors(clip_images, self.size_divisibility)
-        clip_images_resized = F.interpolate(clip_images.tensor, size=self.clip_resolution, mode='bilinear', align_corners=False)
+        # images = [x["image"].to(self.device) for x in batched_inputs]
+
+        #added by fusion-lora-skysense
+        images = [x["image"].to(self.device) for x in batched_inputs]   # each [6, H, W]
+        images = ImageList.from_tensors(images, self.size_divisibility) # images.tensor: [B, 6, H', W']
+
+        spectral_tensor = images.tensor                                # [B, 6, H', W']
+        pseudo_rgb = self.spectral_tokenizer(
+            spectral_tensor, target_size=self.clip_resolution          # [B, 3, 384, 384]
+        )
+
+        # Normalize with CLIP stats (buffers are [3,1,1], so broadcast is fine)
+        clip_images_resized = (pseudo_rgb - self.clip_pixel_mean) / self.clip_pixel_std
+        # clip_images_resized: [B, 3, 384, 384]
+
+        # clip_images = [(x - self.clip_pixel_mean) / self.clip_pixel_std for x in images]
+        # clip_images = ImageList.from_tensors(clip_images, self.size_divisibility)
+        # clip_images_resized = F.interpolate(clip_images.tensor, size=self.clip_resolution, mode='bilinear', align_corners=False)
+        
+        
         # Text Preprocessing
         if self.training:
             if 'dynamic_sampler' in batched_inputs[0].keys(): # dynamic text sampling in training
@@ -319,7 +344,8 @@ class SkySenseO(nn.Module):
             outputs = outputs[:,:test_classes_num,:,:]
             output_height = batched_inputs[0].get("height")
             output_width = batched_inputs[0].get("width")
-            output = sem_seg_postprocess(outputs[0], clip_images.image_sizes[0], output_height, output_width)
+            output = sem_seg_postprocess(outputs[0], images.image_sizes[0], output_height, output_width)
+            # output = sem_seg_postprocess(outputs[0], clip_images.image_sizes[0], output_height, output_width)
             output = [{'sem_seg': output}]
 
             return output
