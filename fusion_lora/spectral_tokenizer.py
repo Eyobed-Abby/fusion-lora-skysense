@@ -3,21 +3,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class SpectralTokenizer(nn.Module):
-    def __init__(self, in_channels = 6, out_dim = 2816, spatial_downsample=32):
+    def __init__(self, in_channels = 6, out_dim = 3):
         """
         Maps 6-band multispectral input to visual encoder-compatible tokens.
         Args:
             in_channels: Number of input spectral bands (e.g. 6 for RGB + NIR + 2 SWIR)
-            out_dim: Output embedding dimension (match visual encoder stage3, e.g. 96)
+            out_dim: Output embedding dimension 3 (to match RGB input)
         """
         super().__init__()
         self.proj = nn.Sequential(
-            nn.Conv2d(in_channels, 512, kernel_size=3, padding=1),
+            nn.Conv2d(in_channels, 64, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, out_dim, kernel_size=1),
+            nn.Conv2d(64, out_dim, kernel_size=1),
         )
 
-        self.spatial_downsample = spatial_downsample
+        
         
     def forward(self, x, target_size=None):
         """
@@ -25,7 +25,7 @@ class SpectralTokenizer(nn.Module):
         returns: Tensor of shape [B, out_dim, H, W]
         """
         x = self.proj(x)
-        if target_size:
+        if target_size is not None:
             x = F.interpolate(x, size=target_size, mode='bilinear', align_corners=False)
         return x
 

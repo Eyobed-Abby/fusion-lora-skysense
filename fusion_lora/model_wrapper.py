@@ -3,38 +3,44 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from fusion_lora.spectral_tokenizer import SpectralTokenizer
-from fusion_lora.caf_module import CrossAttentionFusion
+
 
 class FusionLoRAWrapper(nn.Module):
-    def __init__(self, visual_encoder):
+    """
+    wrapper:
+    - Takes 6-band multispectral images
+    - Uses SpectralTokenizer to map 6 -> 3 channels
+    - Feeds pseudo-RGB into SkySense-CLIP visual encoder
+    - (LoRA / CAF / GLF can be added on top later)
+    """
+    def __init__(self, visual_encoder, clip_resolution=(384, 384)):
+        """
+        Args:
+            visual_encoder: callable like clip_model.encode_image(img, dense=True)
+            clip_resolution: spatial size expected by CLIP/SkySense-O (384, 384)
+        """
         super().__init__()
-        self.visual_encoder = visual_encoder  # e.g. CLIP or SkySense-O encoder (frozen)
+        self.visual_encoder = visual_encoder
+        self.clip_resolution = clip_resolution
 
-        self.spectral_tokenizer = SpectralTokenizer(in_channels=6, out_dim=2816)
-        self.caf_stage3 = CrossAttentionFusion(embed_dim=1408, num_heads=8, lora_rank=8)
-        self.caf_stage4 = CrossAttentionFusion(embed_dim=2816, num_heads=8, lora_rank=8)
+        # 6 -> 3 pseudo-RGB
+        self.spectral_tokenizer = SpectralTokenizer(in_channels=6, out_dim=3)
 
-    def forward(self, rgb_images, ms_images):
+    def forward(self, ms_images):
         """
-        rgb_images: [B, 3, H, W] for SkySense-O encoder
-        ms_images:  [B, 6, H, W] for SpectralTokenizer
+        ms_images: [B, 6, H, W] multispectral patch
+        Returns:
+            clip_features: list of feature maps as returned by encode_image(dense=True)
+                           e.g. [res2, res3, res4, res5_projected]
         """
-        # Step 1: RGB → SkySense visual features
-        with torch.no_grad():
-            clip_features = self.visual_encoder(rgb_images, dense=True)
-            feat_stage3 = clip_features[-2]  # [B, 1408, 14, 14]
-            feat_stage4 = clip_features[-1]  # [B, 2816, 7, 7]
+        B, C, H, W = ms_images.shape
+        assert C == 6, f"Expected 6 spectral channels, got {C}"
 
-        # Step 2: Spectral features
-        spec_tokens = self.spectral_tokenizer(ms_images)  # [B, 2816, H, W]
-        spec_s3 = F.interpolate(spec_tokens, size=(14, 14), mode='bilinear', align_corners=False)
-        spec_s4 = F.interpolate(spec_tokens, size=(7, 7), mode='bilinear', align_corners=False)
+        # Step 1: 6-band -> 3-channel pseudo RGB
+        pseudo_rgb = self.spectral_tokenizer(ms_images, target_size=self.clip_resolution)
+        # pseudo_rgb: [B, 3, clip_H, clip_W]
 
-        # Step 3: Cross-attention fusion
-        fused_s3 = self.caf_stage3(feat_stage3, spec_s3)
-        fused_s4 = self.caf_stage4(feat_stage4, spec_s4)
+        # Step 2: CLIP visual encoder (no change)
+        clip_features = self.visual_encoder(pseudo_rgb, dense=True)
 
-        return {
-            "fused_stage3": fused_s3,  # Optional: pass to visual_guidance conv
-            "fused_stage4": fused_s4   # Decoder input (and GLF target)
-        }
+        return clip_features
