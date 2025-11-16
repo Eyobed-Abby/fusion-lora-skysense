@@ -24,7 +24,7 @@ sys.path.insert(0, str(SKYSENSE_INNER))
 
 
 
-from external.skysense_o.skysense_o.modeling.backbone.skysense_clip import SkySenseCLIP
+from modeling.backbone.skysense_clip import SkySenseCLIP
 from fusion_lora.spectral_tokenizer import SpectralTokenizer
 
 
