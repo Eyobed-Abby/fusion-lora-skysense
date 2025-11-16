@@ -13,7 +13,7 @@ ROOT = THIS_DIR.parent
 EXTERNAL_DIR = ROOT / "external" / "skysense_o"
 sys.path.insert(0, str(EXTERNAL_DIR / "skysense_o"))
 
-from skysense_o.modeling.backbone.skysense_clip import SkySenseCLIP
+from external.skysense_o.skysense_o.modeling.backbone.skysense_clip import SkySenseCLIP
 from fusion_lora.spectral_tokenizer import SpectralTokenizer
 
 
