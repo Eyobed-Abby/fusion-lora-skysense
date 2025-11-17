@@ -35,6 +35,10 @@ def build_skysense_clip():
     cfg.set_new_allowed(True)
     cfg.DATASETS.set_new_allowed(True)
     cfg.MODEL.set_new_allowed(True)
+    cfg.INPUT.set_new_allowed(True)
+
+    # Make MIN_SIZE_TRAIN an int already so merging 384 doesn't cause a type mismatch
+    cfg.INPUT.MIN_SIZE_TRAIN = 384
 
     cfg.merge_from_file(str(SKYSENSE_REPO_ROOT / "configs" / "skysense_o.yaml"))
     cfg.freeze()
