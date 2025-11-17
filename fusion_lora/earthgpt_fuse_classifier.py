@@ -28,11 +28,22 @@ from fusion_lora.spectral_tokenizer import SpectralTokenizer
 
 
 def build_skysense_clip():
+    from skysense_o.config import add_skysense_o_config  # <-- import here
+
     cfg = get_cfg()
+    add_skysense_o_config(cfg)  # <-- register all SkySense-specific keys
+
     cfg.merge_from_file(str(SKYSENSE_REPO_ROOT / "configs" / "skysense_o.yaml"))
     cfg.freeze()
+
     model = SkySenseCLIP(cfg)
     return model, cfg
+
+    # cfg = get_cfg()
+    # cfg.merge_from_file(str(SKYSENSE_REPO_ROOT / "configs" / "skysense_o.yaml"))
+    # cfg.freeze()
+    # model = SkySenseCLIP(cfg)
+    # return model, cfg
 
 
 class EarthGPTFuseClassifier(nn.Module):
