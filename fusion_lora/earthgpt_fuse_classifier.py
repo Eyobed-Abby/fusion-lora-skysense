@@ -28,10 +28,9 @@ from fusion_lora.spectral_tokenizer import SpectralTokenizer
 
 
 def build_skysense_clip():
-    # from skysense_o.config import add_skysense_o_config  # <-- import here
-
     cfg = get_cfg()
-     # Allow new keys before merging skysense_o.yaml (and thus base.yaml)
+
+    # Allow new keys before merging skysense_o.yaml (and thus base.yaml)
     cfg.set_new_allowed(True)
     cfg.DATASETS.set_new_allowed(True)
     cfg.MODEL.set_new_allowed(True)
@@ -40,11 +39,36 @@ def build_skysense_clip():
     # Make MIN_SIZE_TRAIN an int already so merging 384 doesn't cause a type mismatch
     cfg.INPUT.MIN_SIZE_TRAIN = 384
 
+    # Merge SkySense-O config (which includes base.yaml)
     cfg.merge_from_file(str(SKYSENSE_REPO_ROOT / "configs" / "skysense_o.yaml"))
     cfg.freeze()
 
-    model = SkySenseCLIP(cfg)
+    # Build absolute path to the CLIP config YAML
+    # base.yaml: MODEL.CLIP_CFG_PATH: "skysense_o/modeling/backbone/clip_config.yml"
+    clip_cfg_rel = cfg.MODEL.CLIP_CFG_PATH
+    clip_cfg_path = SKYSENSE_REPO_ROOT / clip_cfg_rel
+
+    # SkySenseCLIP expects a path string, not a CfgNode
+    model = SkySenseCLIP(str(clip_cfg_path))
+
     return model, cfg
+    # from skysense_o.config import add_skysense_o_config  # <-- import here
+
+    # cfg = get_cfg()
+    #  # Allow new keys before merging skysense_o.yaml (and thus base.yaml)
+    # cfg.set_new_allowed(True)
+    # cfg.DATASETS.set_new_allowed(True)
+    # cfg.MODEL.set_new_allowed(True)
+    # cfg.INPUT.set_new_allowed(True)
+
+    # # Make MIN_SIZE_TRAIN an int already so merging 384 doesn't cause a type mismatch
+    # cfg.INPUT.MIN_SIZE_TRAIN = 384
+
+    # cfg.merge_from_file(str(SKYSENSE_REPO_ROOT / "configs" / "skysense_o.yaml"))
+    # cfg.freeze()
+
+    # model = SkySenseCLIP(cfg)
+    # return model, cfg
 
     # add_skysense_o_config(cfg)  # <-- register all SkySense-specific keys
 
