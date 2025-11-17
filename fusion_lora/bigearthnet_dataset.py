@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
 
-
+from typing import Union
 class BigEarthNetSpectralDataset(Dataset):
     """
     BigEarthNet-S2 classification dataset for multispectral patches.
@@ -17,7 +17,7 @@ class BigEarthNetSpectralDataset(Dataset):
 
     def __init__(
         self,
-        root: str | Path,
+        root: Union[str, Path],
         split: Literal["train", "val", "test"] = "train",
     ):
         super().__init__()

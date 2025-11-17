@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 from fusion_lora.bigearthnet_dataset import BigEarthNetSpectralDataset
-from fusion_lora.earthgpt_fuse_classifier import EarthGPTFuseClassifier
+from fusion_lora.earthgpt_fuse_classifier_LoRA import EarthGPTFuseClassifier
 
 
 def collate_fn(batch):
