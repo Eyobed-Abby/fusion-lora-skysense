@@ -14,7 +14,7 @@
 
 # from . import data
 from . import modeling
-from .skysense_o_model import SkySenseO
+# from .skysense_o_model import SkySenseO
 # from .data.dataset_mappers.skysense_o_dataset_mapper import SkySenseODatasetMapper
 
-__all__ = [ "modeling", "SkySenseO"]
+__all__ = [ "modeling"]
