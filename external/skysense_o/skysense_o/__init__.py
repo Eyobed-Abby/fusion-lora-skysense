@@ -12,9 +12,9 @@
 
 # external/skysense_o/skysense_o/__init__.py
 
-from . import data
+# from . import data
 from . import modeling
 from .skysense_o_model import SkySenseO
-from .data.dataset_mappers.skysense_o_dataset_mapper import SkySenseODatasetMapper
+# from .data.dataset_mappers.skysense_o_dataset_mapper import SkySenseODatasetMapper
 
-__all__ = ["data", "modeling", "SkySenseO", "SkySenseODatasetMapper"]
+__all__ = [ "modeling", "SkySenseO"]
