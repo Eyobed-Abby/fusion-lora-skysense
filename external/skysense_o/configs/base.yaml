@@ -35,7 +35,7 @@ INPUT:
 
 MODEL:
   CLIP_CFG_PATH: "skysense_o/modeling/backbone/clip_config.yml"
-  CLIP_CKPT_PATH: "pretrain/skysense_clip.ckpt"
+  CLIP_CKPT_PATH: "pretrain/skysense_clip.pth"
   CLIP_PIXEL_MEAN: [123.675, 116.280, 103.530]
   CLIP_PIXEL_STD: [58.395, 57.120, 57.375]
   DEVICE: cuda
