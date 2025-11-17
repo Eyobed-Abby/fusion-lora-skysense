@@ -38,6 +38,22 @@ class BigEarthNetSpectralDataset(Dataset):
 
         df = pd.read_csv(self.root / csv_name)
 
+         # ------------------------------------------------------------------
+        # NEW: keep only rows where the corresponding .pt file actually exists
+        # ------------------------------------------------------------------
+        all_paths = [self.tensor_dir / f"{fname}.pt" for fname in df["filename"]]
+        exists_mask = [p.exists() for p in all_paths]
+
+        if not all(exists_mask):
+            orig_n = len(df)
+            df = df[exists_mask].reset_index(drop=True)
+            kept_n = len(df)
+            print(
+                f"[BigEarthNetSpectralDataset] Only {kept_n}/{orig_n} samples have "
+                f"tensors in '{tensor_dir}'. Using the existing ones."
+            )
+
+
         # filename without .pt
         self.filenames = df["filename"].tolist()
 
