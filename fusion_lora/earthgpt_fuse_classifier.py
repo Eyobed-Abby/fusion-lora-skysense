@@ -13,24 +13,23 @@ from detectron2.config import get_cfg
 # EXTERNAL_DIR = ROOT / "external" / "skysense_o"
 # sys.path.insert(0, str(EXTERNAL_DIR / "skysense_o"))
 
+# -------------------------------------------------------------------------
+# Path setup: add SkySense-O repo root so `skysense_o` package is visible
+# -------------------------------------------------------------------------
 THIS_DIR = Path(__file__).resolve().parent
 ROOT = THIS_DIR.parent
 
-EXTERNAL_ROOT = ROOT / "external" / "skysense_o"
-SKYSENSE_INNER = EXTERNAL_ROOT / "skysense_o"   # <-- inner package
+SKYSENSE_REPO_ROOT = ROOT / "external" / "skysense_o"
+if str(SKYSENSE_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(SKYSENSE_REPO_ROOT))
 
-# Add inner package to sys.path so we can import `modeling.backbone...`
-sys.path.insert(0, str(SKYSENSE_INNER))
-
-
-
-from modeling.backbone.skysense_clip import SkySenseCLIP
+from skysense_o.modeling.backbone.skysense_clip import SkySenseCLIP
 from fusion_lora.spectral_tokenizer import SpectralTokenizer
 
 
 def build_skysense_clip():
     cfg = get_cfg()
-    cfg.merge_from_file(str(EXTERNAL_ROOT / "configs" / "skysense_o.yaml"))
+    cfg.merge_from_file(str(SKYSENSE_REPO_ROOT / "configs" / "skysense_o.yaml"))
     cfg.freeze()
     model = SkySenseCLIP(cfg)
     return model, cfg
