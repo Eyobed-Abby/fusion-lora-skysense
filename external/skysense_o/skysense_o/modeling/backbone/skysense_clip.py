@@ -210,6 +210,9 @@ class SkySenseCLIP(nn.Module):
                 cleaned_state_dict[k] = v
 
         missing_keys, unexpected_keys = self.load_state_dict(cleaned_state_dict, strict=False)
+        self._last_missing_keys = missing_keys
+        self._last_unexpected_keys = unexpected_keys
+
 
         print("clip missing_keys:", missing_keys[:20], "..." if len(missing_keys) > 20 else "")
         print("clip unexpected_keys:", unexpected_keys[:20], "..." if len(unexpected_keys) > 20 else "")
