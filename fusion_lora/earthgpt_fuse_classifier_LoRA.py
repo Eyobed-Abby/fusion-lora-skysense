@@ -28,7 +28,14 @@ from skysense_o.modeling.backbone.skysense_clip import SkySenseCLIP
 # -------------------------------------------------------------------------
 # Build SkySense-CLIP model + config
 # -------------------------------------------------------------------------
+
 def build_skysense_clip():
+    """
+    Build SkySense-CLIP from a Detectron2 cfg so that:
+      - MODEL.CLIP_CFG_PATH points to clip_config.yml
+      - MODEL.CLIP_CKPT_PATH points to pretrain/skysense_clip.pth
+    and SkySenseCLIP can auto-load the pretrained weights.
+    """
     cfg = get_cfg()
 
     # Allow new keys before merging skysense_o.yaml (and thus base.yaml)
@@ -42,17 +49,44 @@ def build_skysense_clip():
 
     # Merge SkySense-O config (which internally includes base.yaml)
     cfg.merge_from_file(str(SKYSENSE_REPO_ROOT / "configs" / "skysense_o.yaml"))
+
+    # Make sure we have a ckpt path defined (relative to external/skysense_o)
+    if not hasattr(cfg.MODEL, "CLIP_CKPT_PATH") or cfg.MODEL.CLIP_CKPT_PATH is None:
+        cfg.MODEL.CLIP_CKPT_PATH = "pretrain/skysense_clip.pth"
+
     cfg.freeze()
 
-    # Build absolute path to the CLIP config YAML
-    # base.yaml: MODEL.CLIP_CFG_PATH: "skysense_o/modeling/backbone/clip_config.yml"
-    clip_cfg_rel = cfg.MODEL.CLIP_CFG_PATH
-    clip_cfg_path = SKYSENSE_REPO_ROOT / clip_cfg_rel
-
-    # SkySenseCLIP expects a path string to its YAML
-    model = SkySenseCLIP(str(clip_cfg_path))
+    # NEW: pass the cfg directly — SkySenseCLIP will read CLIP_CFG_PATH & CLIP_CKPT_PATH
+    model = SkySenseCLIP(cfg)
 
     return model, cfg
+
+#old build_skysense_clip()
+# def build_skysense_clip():
+#     cfg = get_cfg()
+
+#     # Allow new keys before merging skysense_o.yaml (and thus base.yaml)
+#     cfg.set_new_allowed(True)
+#     cfg.DATASETS.set_new_allowed(True)
+#     cfg.MODEL.set_new_allowed(True)
+#     cfg.INPUT.set_new_allowed(True)
+
+#     # Avoid type mismatch for MIN_SIZE_TRAIN when merging
+#     cfg.INPUT.MIN_SIZE_TRAIN = 384
+
+#     # Merge SkySense-O config (which internally includes base.yaml)
+#     cfg.merge_from_file(str(SKYSENSE_REPO_ROOT / "configs" / "skysense_o.yaml"))
+#     cfg.freeze()
+
+#     # Build absolute path to the CLIP config YAML
+#     # base.yaml: MODEL.CLIP_CFG_PATH: "skysense_o/modeling/backbone/clip_config.yml"
+#     clip_cfg_rel = cfg.MODEL.CLIP_CFG_PATH
+#     clip_cfg_path = SKYSENSE_REPO_ROOT / clip_cfg_rel
+
+#     # SkySenseCLIP expects a path string to its YAML
+#     model = SkySenseCLIP(str(clip_cfg_path))
+
+#     return model, cfg
 
 
 # -------------------------------------------------------------------------
