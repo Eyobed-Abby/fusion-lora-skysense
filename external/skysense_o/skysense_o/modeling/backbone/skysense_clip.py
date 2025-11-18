@@ -183,39 +183,81 @@ class SkySenseCLIP(nn.Module):
         return image_features, text_features, self.logit_scale.exp()
 
     def load_pretrained(self, ckpt_path):
-        print(f"[SkySenseCLIP] Loading pretrained weights from: {ckpt_path}")
         ckpt = torch.load(ckpt_path, map_location={"cuda:0": "cpu"})
 
-        # --- Unwrap common nesting patterns ---
-        # Case 1: top-level has 'clip' key
-        if isinstance(ckpt, dict) and "clip" in ckpt:
-            print("[SkySenseCLIP] Found 'clip' key in checkpoint – using ckpt['clip'].")
-            state_dict = ckpt["clip"]
-
-        # Case 2: top-level has 'model' and inside it 'clip'
-        elif isinstance(ckpt, dict) and "model" in ckpt and isinstance(ckpt["model"], dict) and "clip" in ckpt["model"]:
-            print("[SkySenseCLIP] Found 'model[\"clip\"]' in checkpoint – using ckpt['model']['clip'].")
-            state_dict = ckpt["model"]["clip"]
-
+        # 1) If the ckpt has a "clip" sub-dict, start from there
+        if isinstance(ckpt, dict) and "clip" in ckpt and isinstance(ckpt["clip"], dict):
+            print(f"[SkySenseCLIP] Found 'clip' key in checkpoint – using ckpt['clip'] as base.")
+            base_sd = ckpt["clip"].copy()
         else:
-            print("[SkySenseCLIP] Using checkpoint as-is (no 'clip' or 'model[\"clip\"]' keys).")
-            state_dict = ckpt
+            print("[SkySenseCLIP] No 'clip' key found – using full ckpt as base_sd.")
+            base_sd = ckpt if isinstance(ckpt, dict) else ckpt.state_dict()
 
-        # Optional: strip any 'module.' prefixes if present
-        cleaned_state_dict = {}
-        for k, v in state_dict.items():
-            if k.startswith("module."):
-                cleaned_state_dict[k[len("module."):]] = v
-            else:
-                cleaned_state_dict[k] = v
+        # 2) Try to pull visual.* weights out of other sub-dicts, e.g. 'model', 'teacher', 'geo_clip'
+        #    and merge them into base_sd so they match our module names.
+        possible_sources = ["model", "teacher", "geo_clip"]
+        for top_key in possible_sources:
+            if top_key not in ckpt or not isinstance(ckpt[top_key], dict):
+                continue
+            sub = ckpt[top_key]
+            print(f"[SkySenseCLIP] Scanning ckpt['{top_key}'] for 'visual.' params...")
+            for k, v in sub.items():
+                # Typical patterns we might see:
+                #   "clip.visual.patch_embed.projection.weight"
+                #   "backbone.clip.visual.stages.0.blocks.0.attn..."
+                # We want to strip everything BEFORE "visual." and keep "visual...."
+                if "visual." in k:
+                    vis_index = k.index("visual.")
+                    new_k = k[vis_index:]  # e.g. "visual.patch_embed.projection.weight"
+                    if new_k not in base_sd:
+                        base_sd[new_k] = v
 
-        missing_keys, unexpected_keys = self.load_state_dict(cleaned_state_dict, strict=False)
+        # 3) Now load into our module
+        missing_keys, unexpected_keys = self.load_state_dict(base_sd, strict=False)
+        print("clip missing_keys:", missing_keys[:20], "..." if len(missing_keys) > 20 else "")
+        print("clip unexpected_keys:", unexpected_keys)
+
+        # Optional: store for debugging
         self._last_missing_keys = missing_keys
         self._last_unexpected_keys = unexpected_keys
 
 
-        print("clip missing_keys:", missing_keys[:20], "..." if len(missing_keys) > 20 else "")
-        print("clip unexpected_keys:", unexpected_keys[:20], "..." if len(unexpected_keys) > 20 else "")
+
+    #Second trial
+    # def load_pretrained(self, ckpt_path):
+    #     print(f"[SkySenseCLIP] Loading pretrained weights from: {ckpt_path}")
+    #     ckpt = torch.load(ckpt_path, map_location={"cuda:0": "cpu"})
+
+    #     # --- Unwrap common nesting patterns ---
+    #     # Case 1: top-level has 'clip' key
+    #     if isinstance(ckpt, dict) and "clip" in ckpt:
+    #         print("[SkySenseCLIP] Found 'clip' key in checkpoint – using ckpt['clip'].")
+    #         state_dict = ckpt["clip"]
+
+    #     # Case 2: top-level has 'model' and inside it 'clip'
+    #     elif isinstance(ckpt, dict) and "model" in ckpt and isinstance(ckpt["model"], dict) and "clip" in ckpt["model"]:
+    #         print("[SkySenseCLIP] Found 'model[\"clip\"]' in checkpoint – using ckpt['model']['clip'].")
+    #         state_dict = ckpt["model"]["clip"]
+
+    #     else:
+    #         print("[SkySenseCLIP] Using checkpoint as-is (no 'clip' or 'model[\"clip\"]' keys).")
+    #         state_dict = ckpt
+
+    #     # Optional: strip any 'module.' prefixes if present
+    #     cleaned_state_dict = {}
+    #     for k, v in state_dict.items():
+    #         if k.startswith("module."):
+    #             cleaned_state_dict[k[len("module."):]] = v
+    #         else:
+    #             cleaned_state_dict[k] = v
+
+    #     missing_keys, unexpected_keys = self.load_state_dict(cleaned_state_dict, strict=False)
+    #     self._last_missing_keys = missing_keys
+    #     self._last_unexpected_keys = unexpected_keys
+
+
+    #     print("clip missing_keys:", missing_keys[:20], "..." if len(missing_keys) > 20 else "")
+    #     print("clip unexpected_keys:", unexpected_keys[:20], "..." if len(unexpected_keys) > 20 else "")
 
     # def load_pretrained(self, ckpt_path):
     #     print(f"[SkySenseCLIP] Loading pretrained weights from: {ckpt_path}")
