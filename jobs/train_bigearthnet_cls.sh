@@ -3,34 +3,34 @@
 #SBATCH --account=kuin0137
 
 ## 🔧 GPU + CPU resources
-#SBATCH --partition=gpu          # GPU queue on Almesbar
-#SBATCH --gres=gpu:1             # 1 V100 GPU
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:1
+
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8        # for dataloaders / BLAS
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=24:00:00          # 12 hours (max on gpu is 72h)
+#SBATCH --time=24:00:00
 
-## 🔎 Logs (relative to project root)
 #SBATCH --output=jobs/logs/train_benet_%j.out
 #SBATCH --error=jobs/logs/train_benet_%j.err
 
 echo "======================================="
 echo "   BigEarthNet-S2 LoRA Training"
 echo "======================================="
-echo "Host       : $(hostname)"
-echo "Start time : $(date)"
-echo "SLURM_JOBID: ${SLURM_JOB_ID}"
+echo "Host: $(hostname)"
+echo "Start time: $(date)"
 echo
 
 # -----------------------------
-# 1) Load Python environment
+# 1) Load Python (same as login)
 # -----------------------------
 module purge
 module load miniconda/3
 
-# Your dedicated project env (adjust if different)
-PY=/dpc/kuin0137/envs/fusionlora/bin/python
+echo "Python path: $(which python)"
+python --version
+echo
 
 # -----------------------------
 # 2) Move to project directory
@@ -51,16 +51,8 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 # 3) Run training
 # -----------------------------
 echo "Starting BigEarthNet-S2 training..."
-echo "Using settings:"
-echo "  batch-size : 64"
-echo "  epochs     : 15"
-echo "  lr         : 1e-4"
-echo "  workers    : 8"
-echo "  lora-rank  : 8"
-echo "  exp-name   : benet_full_e15_bs64"
-echo
 
-$PY train_scripts/train_bigearthnet_cls.py \
+srun python train_scripts/train_bigearthnet_cls.py \
     --data-root datasets/bigearthnet_s2 \
     --batch-size 64 \
     --epochs 15 \
