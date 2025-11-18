@@ -1,9 +1,18 @@
 # train_scripts/demo_inference_bigearthnet.py
 
+import sys
 from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
+
+# -------------------------------------------------------------------------
+# Make repo root importable so `fusion_lora.*` works when run as a script
+# -------------------------------------------------------------------------
+THIS_DIR = Path(__file__).resolve().parent
+ROOT = THIS_DIR.parent  # fusion-lora-skysense/
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from fusion_lora.bigearthnet_dataset import BigEarthNetSpectralDataset
 from fusion_lora.earthgpt_fuse_classifier_LoRA import EarthGPTFuseClassifier
@@ -14,17 +23,17 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
-    data_root = Path("datasets/bigearthnet_s2")
-    ckpt_path = Path("checkpoints/debug_run/best_epoch_2_lora_only.pth")
+    data_root = ROOT / "datasets" / "bigearthnet_s2"
+    ckpt_path = ROOT / "checkpoints" / "debug_run" / "best_epoch_2_lora_only.pth"
 
-    # 1) Dataset & loader (use val split for demo)
+    # 1) Dataset & loader (val split for demo)
     ds = BigEarthNetSpectralDataset(data_root, split="val")
     loader = DataLoader(ds, batch_size=4, shuffle=True, num_workers=2)
 
     print(f"Val samples: {len(ds)}")
     print(f"Num classes: {ds.num_classes}")
 
-    # 2) Build model (this loads SkySense-CLIP pretrained internally)
+    # 2) Build model (loads SkySense-CLIP pretrained internally)
     print("\n=== Building model (this loads SkySense-CLIP pretrained) ===")
     model = EarthGPTFuseClassifier(
         num_classes=ds.num_classes,
