@@ -10,7 +10,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 
 #SBATCH --output=jobs/logs/train_benet_%j.out
 #SBATCH --error=jobs/logs/train_benet_%j.err
@@ -59,7 +59,7 @@ srun python train_scripts/train_bigearthnet_cls.py \
     --lr 1e-4 \
     --num-workers 8 \
     --lora-rank 8 \
-    --exp-name benet_full_e15_bs64 \
+    --exp-name benet_full_e15_bs8 \
     --save-lora-only
 
 echo
