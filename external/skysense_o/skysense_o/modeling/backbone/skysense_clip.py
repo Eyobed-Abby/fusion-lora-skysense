@@ -183,43 +183,85 @@ class SkySenseCLIP(nn.Module):
         return image_features, text_features, self.logit_scale.exp()
 
     def load_pretrained(self, ckpt_path):
-        ckpt = torch.load(ckpt_path, map_location={"cuda:0": "cpu"})
+        """
+        Load pre-trained weights from a SkySense-O checkpoint.
 
-        # 1) If the ckpt has a "clip" sub-dict, start from there
-        if isinstance(ckpt, dict) and "clip" in ckpt and isinstance(ckpt["clip"], dict):
-            print(f"[SkySenseCLIP] Found 'clip' key in checkpoint – using ckpt['clip'] as base.")
-            base_sd = ckpt["clip"].copy()
+        - Text branch + projections from ckpt['clip']
+        - Visual Swin backbone from ckpt['model']['backbone_gep.*']
+          and/or ckpt['teacher']['backbone_gep.*'], mapped to 'visual.*'
+        """
+        ckpt = torch.load(ckpt_path, map_location={"cuda:0": "cpu", "cuda:1": "cpu"})
+        print(f"[SkySenseCLIP] Loading pretrained weights from: {ckpt_path}")
+
+        if not isinstance(ckpt, dict):
+            raise TypeError(f"Checkpoint at {ckpt_path} is not a dict, got {type(ckpt)}")
+
+        # Our current model state
+        base_sd = self.state_dict()
+
+        # ------------------------------------------------------------------
+        # 1) Load CLIP text branch + projections from ckpt['clip']
+        # ------------------------------------------------------------------
+        clip_sd = ckpt.get("clip", None)
+        if isinstance(clip_sd, dict):
+            print("[SkySenseCLIP] Found 'clip' key in checkpoint – using ckpt['clip'] as base.")
         else:
-            print("[SkySenseCLIP] No 'clip' key found – using full ckpt as base_sd.")
-            base_sd = ckpt if isinstance(ckpt, dict) else ckpt.state_dict()
+            clip_sd = {}
+            print("[SkySenseCLIP] No 'clip' dict found in checkpoint – skipping text preload.")
 
-        # 2) Try to pull visual.* weights out of other sub-dicts, e.g. 'model', 'teacher', 'geo_clip'
-        #    and merge them into base_sd so they match our module names.
-        possible_sources = ["model", "teacher", "geo_clip"]
-        for top_key in possible_sources:
-            if top_key not in ckpt or not isinstance(ckpt[top_key], dict):
-                continue
-            sub = ckpt[top_key]
-            print(f"[SkySenseCLIP] Scanning ckpt['{top_key}'] for 'visual.' params...")
-            for k, v in sub.items():
-                # Typical patterns we might see:
-                #   "clip.visual.patch_embed.projection.weight"
-                #   "backbone.clip.visual.stages.0.blocks.0.attn..."
-                # We want to strip everything BEFORE "visual." and keep "visual...."
-                if "visual." in k:
-                    vis_index = k.index("visual.")
-                    new_k = k[vis_index:]  # e.g. "visual.patch_embed.projection.weight"
-                    if new_k not in base_sd:
-                        base_sd[new_k] = v
+        # Apply any matching keys from ckpt['clip'] into base_sd
+        num_clip_loaded = 0
+        for k, v in clip_sd.items():
+            if k in base_sd and base_sd[k].shape == v.shape:
+                base_sd[k] = v
+                num_clip_loaded += 1
 
-        # 3) Now load into our module
+        # ------------------------------------------------------------------
+        # 2) Load visual backbone from 'backbone_gep.*' in model/teacher
+        # ------------------------------------------------------------------
+        def merge_backbone_gep(src_name: str, subdict: dict, dest_sd: dict):
+            if not isinstance(subdict, dict):
+                return 0
+
+            loaded = 0
+            prefix = "backbone_gep."
+            for k, v in subdict.items():
+                if not k.startswith(prefix):
+                    continue
+                tail = k[len(prefix):]               # e.g. 'patch_embed.projection.weight'
+                new_k = "visual." + tail             # e.g. 'visual.patch_embed.projection.weight'
+                if new_k in dest_sd and dest_sd[new_k].shape == v.shape:
+                    dest_sd[new_k] = v
+                    loaded += 1
+            print(f"[SkySenseCLIP] From '{src_name}': loaded {loaded} visual params via backbone_gep -> visual.")
+            return loaded
+
+        total_visual_loaded = 0
+        for sub_name in ["model", "teacher"]:
+            if sub_name in ckpt and isinstance(ckpt[sub_name], dict):
+                total_visual_loaded += merge_backbone_gep(sub_name, ckpt[sub_name], base_sd)
+
+        # ------------------------------------------------------------------
+        # 3) Load into model and report stats
+        # ------------------------------------------------------------------
         missing_keys, unexpected_keys = self.load_state_dict(base_sd, strict=False)
-        print("clip missing_keys:", missing_keys[:20], "..." if len(missing_keys) > 20 else "")
-        print("clip unexpected_keys:", unexpected_keys)
 
-        # Optional: store for debugging
-        self._last_missing_keys = missing_keys
-        self._last_unexpected_keys = unexpected_keys
+        print(f"Total CLIP-like params in model state_dict: {len(base_sd)}")
+        print(f"From ckpt['clip']: loaded {num_clip_loaded} params.")
+        print(f"From backbone_gep (model/teacher): loaded {total_visual_loaded} visual params.")
+        print(f"#missing: {len(missing_keys)}")
+        print(f"#unexpected: {len(unexpected_keys)}")
+
+        if missing_keys:
+            print("First few missing keys:")
+            for k in missing_keys[:20]:
+                print("   ", k)
+
+        if unexpected_keys:
+            print("First few unexpected keys:")
+            for k in unexpected_keys[:20]:
+                print("   ", k)
+
 
 
 
