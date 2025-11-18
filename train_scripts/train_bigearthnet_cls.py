@@ -22,12 +22,21 @@
 
 import argparse
 from pathlib import Path
+import sys
 import random
 
 import numpy as np
 import torch
 from torch import optim
 from torch.utils.data import DataLoader, Subset
+
+# -------------------------------------------------------------------------
+# Ensure the repo root is on sys.path so `fusion_lora` is importable
+# -------------------------------------------------------------------------
+THIS_DIR = Path(__file__).resolve().parent        # .../fusion-lora-skysense/train_scripts
+ROOT_DIR = THIS_DIR.parent                        # .../fusion-lora-skysense
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from fusion_lora.bigearthnet_dataset import BigEarthNetSpectralDataset
 from fusion_lora.earthgpt_fuse_classifier_LoRA import EarthGPTFuseClassifier
