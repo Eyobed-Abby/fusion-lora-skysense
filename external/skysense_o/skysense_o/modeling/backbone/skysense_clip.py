@@ -184,12 +184,44 @@ class SkySenseCLIP(nn.Module):
 
     def load_pretrained(self, ckpt_path):
         print(f"[SkySenseCLIP] Loading pretrained weights from: {ckpt_path}")
-        pretrained_dict = torch.load(ckpt_path, map_location={"cuda:0": "cpu"})
-        missing_keys, unexpected_keys = self.load_state_dict(
-            pretrained_dict, strict=False
-        )
-        print("clip missing_keys:", missing_keys)
-        print("clip unexpected_keys:", unexpected_keys)
+        ckpt = torch.load(ckpt_path, map_location={"cuda:0": "cpu"})
+
+        # --- Unwrap common nesting patterns ---
+        # Case 1: top-level has 'clip' key
+        if isinstance(ckpt, dict) and "clip" in ckpt:
+            print("[SkySenseCLIP] Found 'clip' key in checkpoint – using ckpt['clip'].")
+            state_dict = ckpt["clip"]
+
+        # Case 2: top-level has 'model' and inside it 'clip'
+        elif isinstance(ckpt, dict) and "model" in ckpt and isinstance(ckpt["model"], dict) and "clip" in ckpt["model"]:
+            print("[SkySenseCLIP] Found 'model[\"clip\"]' in checkpoint – using ckpt['model']['clip'].")
+            state_dict = ckpt["model"]["clip"]
+
+        else:
+            print("[SkySenseCLIP] Using checkpoint as-is (no 'clip' or 'model[\"clip\"]' keys).")
+            state_dict = ckpt
+
+        # Optional: strip any 'module.' prefixes if present
+        cleaned_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("module."):
+                cleaned_state_dict[k[len("module."):]] = v
+            else:
+                cleaned_state_dict[k] = v
+
+        missing_keys, unexpected_keys = self.load_state_dict(cleaned_state_dict, strict=False)
+
+        print("clip missing_keys:", missing_keys[:20], "..." if len(missing_keys) > 20 else "")
+        print("clip unexpected_keys:", unexpected_keys[:20], "..." if len(unexpected_keys) > 20 else "")
+
+    # def load_pretrained(self, ckpt_path):
+    #     print(f"[SkySenseCLIP] Loading pretrained weights from: {ckpt_path}")
+    #     pretrained_dict = torch.load(ckpt_path, map_location={"cuda:0": "cpu"})
+    #     missing_keys, unexpected_keys = self.load_state_dict(
+    #         pretrained_dict, strict=False
+    #     )
+    #     print("clip missing_keys:", missing_keys)
+    #     print("clip unexpected_keys:", unexpected_keys)
 
 
 
