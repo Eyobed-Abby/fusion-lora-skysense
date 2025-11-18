@@ -22,19 +22,18 @@ echo "Host: $(hostname)"
 echo "Start time: $(date)"
 echo
 
-# -----------------------------
-# 1) Load Python (same as login)
-# -----------------------------
+# --------------------------------
+# 1) Load Python environment
+# --------------------------------
 module purge
 module load miniconda/3
 
-echo "Python path: $(which python)"
-python --version
-echo
+# Your dedicated project env
+PY=/dpc/kuin0137/envs/fusionlora/bin/python
 
-# -----------------------------
+# --------------------------------
 # 2) Move to project directory
-# -----------------------------
+# --------------------------------
 cd /dpc/kuin0137/skysense_lora/fusion-lora-skysense
 
 echo "Working directory: $(pwd)"
@@ -47,19 +46,22 @@ mkdir -p checkpoints
 # Optional: be nice to dataloaders
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-# -----------------------------
+# Optional: slightly better CUDA alloc behaviour (can help fragmentation)
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+# --------------------------------
 # 3) Run training
-# -----------------------------
+# --------------------------------
 echo "Starting BigEarthNet-S2 training..."
 
-srun python train_scripts/train_bigearthnet_cls.py \
+$PY train_scripts/train_bigearthnet_cls.py \
     --data-root datasets/bigearthnet_s2 \
-    --batch-size 64 \
+    --batch-size 8 \
     --epochs 15 \
     --lr 1e-4 \
-    --num-workers 8 \
+    --num-workers 4 \
     --lora-rank 8 \
-    --exp-name benet_full_e15_bs64 \
+    --exp-name benet_full_e15_bs8 \
     --save-lora-only
 
 echo
