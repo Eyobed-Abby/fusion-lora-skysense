@@ -5,70 +5,85 @@ import torch.nn.functional as F
 from torch import nn
 from typing import Optional
 from einops import rearrange
-
 from .text_encoder import TextTransformer, text_global_pool
 from .visual_encoder import SwinTransformerV2
 
 from pathlib import Path
-import os
+from yacs.config import CfgNode  # NEW: to detect Detectron2 cfg nodes
 
 
 class SkySenseCLIP(nn.Module):
     """
-    SkySenseCLIP is a modified version of SkySense and CLIP, used for zero-shot
-    classification and semantic segmentation.
+    SkySenseCLIP is a modified version of SkySense and CLIP, which is used for
+    zero-shot classification and semantic segmentation.
 
-    In this project, we construct it from a Detectron2 cfg:
+    This version supports two ways of initialization:
 
-        cfg.MODEL.CLIP_CFG_PATH   -> path to YAML with 'clip' sub-config
-        cfg.MODEL.CLIP_CKPT_PATH  -> path to pretrained weights (.pth)
+    1) cfg_or_path is a Detectron2 CfgNode:
+       - Uses cfg.MODEL.CLIP_CFG_PATH for the CLIP YAML
+       - Uses cfg.MODEL.CLIP_CKPT_PATH for the pretrained weights
 
-    For backward compatibility, you can still pass a string path to the YAML
-    instead of a cfg object.
+    2) cfg_or_path is a string Path to a CLIP YAML:
+       - Behaves like the original implementation, without automatic ckpt loading.
     """
 
     def __init__(self, cfg_or_path, init_logit_scale: float = np.log(1 / 0.07)):
         super().__init__()
 
-        # ------------------------------------------------------------------
-        # 1) Resolve the YAML config path
-        # ------------------------------------------------------------------
-        self.d2_cfg = None
-        if isinstance(cfg_or_path, (str, os.PathLike)):
-            # Old API: directly given a YAML path
-            cfg_path = cfg_or_path
-        else:
-            # New API: given a Detectron2 cfg object
+        # -------------------------------------------------------
+        # 1. Handle input: either Detectron2 cfg or YAML path
+        # -------------------------------------------------------
+        if isinstance(cfg_or_path, CfgNode):
+            # Full Detectron2 config
             self.d2_cfg = cfg_or_path
-            cfg_path = self.d2_cfg.MODEL.CLIP_CFG_PATH
 
-        cfg_path = str(cfg_path)
-        if not os.path.isabs(cfg_path):
-            # Resolve relative to this file's repo root: external/skysense_o/
+            # Repo root is 3 levels above this file:
+            # skysense_o/modeling/backbone/skysense_clip.py
+            # -> skysense_o/modeling/backbone
+            # -> skysense_o/modeling
+            # -> skysense_o
             repo_root = Path(__file__).resolve().parents[3]
-            cfg_path = str((repo_root / cfg_path).resolve())
 
-        if not os.path.exists(cfg_path):
-            raise FileNotFoundError(f"[SkySenseCLIP] CFG YAML not found at: {cfg_path}")
+            clip_cfg_path = repo_root / self.d2_cfg.MODEL.CLIP_CFG_PATH
+            ckpt_path = repo_root / self.d2_cfg.MODEL.CLIP_CKPT_PATH
 
-        # ------------------------------------------------------------------
-        # 2) Load 'clip' sub-config from YAML
-        # ------------------------------------------------------------------
-        with open(cfg_path, 'r') as f:
-            full_cfg = yaml.load(f, Loader=yaml.Loader)
-        clip_cfg = full_cfg["clip"]
+            print("[SkySenseCLIP] Using Detectron2 cfg.")
+            print("  CLIP cfg  :", clip_cfg_path)
+            print("  CLIP ckpt :", ckpt_path)
 
-        embed_dim = clip_cfg["embed_dim"]
-        init_logit_bias = clip_cfg["init_logit_bias"]
+            with open(clip_cfg_path, "r") as f:
+                cfg = yaml.load(f, Loader=yaml.Loader)["clip"]
 
-        context_length = clip_cfg["text_cfg"]["context_length"]
-        vocab_size = clip_cfg["text_cfg"]["vocab_size"]
-        width = clip_cfg["text_cfg"]["width"]
-        heads = clip_cfg["text_cfg"]["heads"]
-        layers = clip_cfg["text_cfg"]["layers"]
+            # we will load weights at the end of __init__
+            self._ckpt_path = ckpt_path
 
-        swin_params = clip_cfg["vision_cfg"].copy()
-        swin_params.pop("pool_dim")
+        else:
+            # Old behaviour: cfg_or_path is a YAML path
+            self.d2_cfg = None
+            clip_cfg_path = Path(cfg_or_path)
+            print("[SkySenseCLIP] Initialized from YAML path only (no Detectron2 cfg).")
+            print("  CLIP cfg  :", clip_cfg_path)
+
+            with open(clip_cfg_path, "r") as f:
+                cfg = yaml.load(f, Loader=yaml.Loader)["clip"]
+
+            # No automatic ckpt unless you manually call load_pretrained
+            self._ckpt_path = None
+
+        # -------------------------------------------------------
+        # 2. Build visual encoder (Swin) and text encoder
+        # -------------------------------------------------------
+        embed_dim = cfg["embed_dim"]
+        init_logit_bias = cfg["init_logit_bias"]
+
+        context_length = cfg["text_cfg"]["context_length"]
+        vocab_size = cfg["text_cfg"]["vocab_size"]
+        width = cfg["text_cfg"]["width"]
+        heads = cfg["text_cfg"]["heads"]
+        layers = cfg["text_cfg"]["layers"]
+
+        swin_params = cfg["vision_cfg"].copy()
+        swin_params.pop("pool_dim")  # not a Swin parameter
         self.visual = SwinTransformerV2(**swin_params)
 
         text = TextTransformer(
@@ -89,63 +104,56 @@ class SkySenseCLIP(nn.Module):
         self.text_projection = text.text_projection
         self.text_pool_type = text.pool_type
 
-        scale = clip_cfg["vision_cfg"]["pool_dim"] ** -0.5
+        scale = cfg["vision_cfg"]["pool_dim"] ** -0.5
         self.vision_projection = nn.Parameter(
-            scale * torch.randn(clip_cfg["vision_cfg"]["pool_dim"], embed_dim)
+            scale * torch.randn(cfg["vision_cfg"]["pool_dim"], embed_dim)
         )
 
         self.register_buffer("attn_mask", text.attn_mask, persistent=False)
-        self.logit_scale = nn.Parameter(torch.ones([]) * init_logit_scale)
+        self.logit_scale = nn.Parameter(torch.ones([]) * init_logit_scale)  # 1.155
+
         if init_logit_bias is not None:
             self.logit_bias = nn.Parameter(torch.ones([]) * init_logit_bias)
         else:
             self.logit_bias = None
 
-        # ------------------------------------------------------------------
-        # 3) Optional: load pretrained weights from cfg.MODEL.CLIP_CKPT_PATH
-        # ------------------------------------------------------------------
-        if self.d2_cfg is not None:
-            ckpt_rel = getattr(self.d2_cfg.MODEL, "CLIP_CKPT_PATH", None)
-            if ckpt_rel:
-                repo_root = Path(__file__).resolve().parents[3]  # external/skysense_o/
-                ckpt_path = (repo_root / ckpt_rel).resolve()
-                if ckpt_path.exists():
-                    print(f"[SkySenseCLIP] Loading checkpoint from {ckpt_path}")
-                    self.load_pretrained(str(ckpt_path))
-                else:
-                    print(f"[SkySenseCLIP] WARNING: checkpoint not found at {ckpt_path}")
-            else:
-                print("[SkySenseCLIP] No CLIP_CKPT_PATH set in cfg.MODEL; using random init.")
-        else:
-            # Old API: user must call load_pretrained manually if desired
-            print("[SkySenseCLIP] Initialized from YAML path only (no Detectron2 cfg).")
+        # -------------------------------------------------------
+        # 3. Load pretrained weights if we have a checkpoint
+        # -------------------------------------------------------
+        if self._ckpt_path is not None:
+            self.load_pretrained(self._ckpt_path)
+
+        # Freezing is handled outside (e.g., in EarthGPTFuseClassifier)
+        # so we do NOT touch requires_grad here.
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
         self.transformer.grad_checkpointing = enable
 
     def encode_image(self, image, normalize: bool = False, dense: bool = False):
-        image_features = self.visual(image)
+        """
+        image: [B, C, H, W]
+        Returns either pooled features [B, D] or dense features if dense=True.
+        """
+        image_features = self.visual(image)  # typically a list of feature maps
 
         if not dense:
-            image_features = image_features[-1]
-            image_features = F.adaptive_avg_pool2d(
-                image_features, output_size=1
-            ).squeeze()
-            image_features = image_features @ self.vision_projection
-            return F.normalize(image_features, dim=-1) if normalize else image_features
+            feat = image_features[-1]
+            feat = F.adaptive_avg_pool2d(feat, output_size=1).squeeze()
+            feat = feat @ self.vision_projection
+            return F.normalize(feat, dim=-1) if normalize else feat
         else:
-            image_feature = image_features[-1]
-            image_feature = image_feature.flatten(start_dim=2).permute(0, 2, 1)
-            image_feature = image_feature @ self.vision_projection
-            image_feature = rearrange(
-                image_feature,
+            feat = image_features[-1]
+            feat = feat.flatten(start_dim=2).permute(0, 2, 1)  # [B, HW, C]
+            feat = feat @ self.vision_projection
+            feat = rearrange(
+                feat,
                 "B (H W) C -> B C H W",
-                H=int(np.sqrt(image_feature.shape[1]).astype(int)),
+                H=int(np.sqrt(feat.shape[1]).astype(int)),
             )
             if normalize:
-                image_feature = F.normalize(image_feature, dim=-1)
-            image_features[-1] = image_feature
+                feat = F.normalize(feat, dim=-1)
+            image_features[-1] = feat
             return image_features
 
     def encode_text(self, text, normalize: bool = False):
@@ -155,13 +163,15 @@ class SkySenseCLIP(nn.Module):
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x, attn_mask=self.attn_mask)
         x = x.permute(1, 0, 2)  # LND -> NLD
-        x = self.ln_final(x)
+        x = self.ln_final(x)  # [batch_size, n_ctx, transformer.width]
         x, _ = text_global_pool(x, text, self.text_pool_type)
+
         if self.text_projection is not None:
             if isinstance(self.text_projection, nn.Linear):
                 x = self.text_projection(x)
             else:
                 x = x @ self.text_projection
+
         return F.normalize(x, dim=-1) if normalize else x
 
     def get_logits(self, image, text):
@@ -169,8 +179,10 @@ class SkySenseCLIP(nn.Module):
         with torch.cuda.amp.autocast(enabled=False):
             text_features = self.encode_text(text, normalize=True)
             image_logits = self.logit_scale.exp() * (image_features @ text_features.T)
+
         if self.logit_bias is not None:
             image_logits += self.logit_bias
+
         text_logits = image_logits.T
         return image_logits, text_logits
 
@@ -186,28 +198,27 @@ class SkySenseCLIP(nn.Module):
             text_features = (
                 self.encode_text(text, normalize=True) if text is not None else None
             )
+
         if self.logit_bias is not None:
-            return image_features, text_features, self.logit_scale.exp(), self.logit_bias
+            return (
+                image_features,
+                text_features,
+                self.logit_scale.exp(),
+                self.logit_bias,
+            )
         return image_features, text_features, self.logit_scale.exp()
 
-    def load_pretrained(self, ckpt_path: str):
-        """
-        Load pretrained weights from a .pth checkpoint.
-        """
-        print(f"[SkySenseCLIP] load_pretrained from {ckpt_path}")
+    def load_pretrained(self, ckpt_path):
+        ckpt_path = Path(ckpt_path)
+        print(f"[SkySenseCLIP] Loading pretrained weights from: {ckpt_path}")
         pretrained_dict = torch.load(ckpt_path, map_location={"cuda:0": "cpu"})
-        if isinstance(pretrained_dict, dict) and "state_dict" in pretrained_dict:
-            pretrained_dict = pretrained_dict["state_dict"]
 
         missing_keys, unexpected_keys = self.load_state_dict(
             pretrained_dict, strict=False
         )
-        print("[SkySenseCLIP] clip missing_keys:", len(missing_keys))
-        print("[SkySenseCLIP] clip unexpected_keys:", len(unexpected_keys))
-        if len(missing_keys) < 20:
-            print("  missing:", missing_keys)
-        if len(unexpected_keys) < 20:
-            print("  unexpected:", unexpected_keys)
+        print("clip missing_keys:", missing_keys)
+        print("clip unexpected_keys:", unexpected_keys)
+
 
 
 # import yaml
