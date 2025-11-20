@@ -1,0 +1,168 @@
+import sys
+from pathlib import Path
+import argparse
+import json
+
+import torch
+from torch.utils.data import DataLoader, Subset
+from sklearn.metrics import f1_score
+
+THIS_DIR = Path(__file__).resolve().parent
+ROOT = THIS_DIR.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from fusion_lora.bigearthnet_dataset import BigEarthNetSpectralDataset
+from fusion_lora.earthgpt_fuse_classifier_LoRA import EarthGPTFuseClassifier
+
+
+def move_batch_to_device(batch, device):
+    out = {}
+    for k, v in batch.items():
+        out[k] = v.to(device) if torch.is_tensor(v) else v
+    return out
+
+
+@torch.no_grad()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-root", type=str,
+                        default=str(ROOT / "datasets" / "bigearthnet_s2"))
+    parser.add_argument("--split", type=str, choices=["train", "val", "test"],
+                        default="test")
+    parser.add_argument("--ckpt", type=str,
+                        default=str(ROOT / "checkpoints" /
+                                    "benet_full_e15_bs8" /
+                                    "best_epoch_15_lora_only.pth"))
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--exp-name", type=str, default="benet_full_e15_bs8")
+    parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--num-samples", type=int, default=None)
+    parser.add_argument("--print-samples", type=int, default=4)
+    args = parser.parse_args()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # ================================================================
+    # Dataset
+    # ================================================================
+    base_ds = BigEarthNetSpectralDataset(args.data_root, split=args.split)
+    if args.num_samples is not None:
+        ds = Subset(base_ds, range(args.num_samples))
+    else:
+        ds = base_ds
+
+    loader = DataLoader(
+        ds, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.num_workers, pin_memory=True
+    )
+
+    print(f"Dataset split={args.split}, samples={len(ds)}")
+    class_names = base_ds.class_names
+    C = base_ds.num_classes
+
+    # ================================================================
+    # Model
+    # ================================================================
+    model = EarthGPTFuseClassifier(
+        num_classes=C, lora_rank=8
+    ).to(device)
+
+    print(f"Loading checkpoint: {args.ckpt}")
+    ckpt = torch.load(args.ckpt, map_location=device)
+    missing, unexpected = model.load_state_dict(ckpt.get("model", ckpt), strict=False)
+    print("Loaded LoRA/fusion weights.")
+
+    # ================================================================
+    # Metrics containers
+    # ================================================================
+    total_loss = 0
+    total_correct_bits = 0
+    total_bits = 0
+
+    all_true = []
+    all_pred = []
+
+    saved_samples = []
+
+    # ================================================================
+    # Loop
+    # ================================================================
+    for batch in loader:
+        batch = move_batch_to_device(batch, device)
+        labels = batch["labels"]
+
+        out = model({"image": batch["image"], "labels": labels})
+        logits = out["logits"]
+        loss = out["loss_cls"]
+
+        probs = torch.sigmoid(logits).cpu()
+        preds = (probs > args.threshold).float()
+
+        total_loss += loss.item()
+        total_correct_bits += (preds == labels.cpu()).sum().item()
+        total_bits += labels.numel()
+
+        all_true.append(labels.cpu())
+        all_pred.append(preds)
+
+        # Sample examples
+        if len(saved_samples) < args.print-samples:
+            for i in range(labels.size(0)):
+                if len(saved_samples) < args.print_samples:
+                    saved_samples.append({
+                        "true": labels[i].cpu().tolist(),
+                        "pred": preds[i].tolist(),
+                        "probs": probs[i].tolist(),
+                    })
+
+    # Stack
+    y_true = torch.vstack(all_true).numpy()
+    y_pred = torch.vstack(all_pred).numpy()
+
+    # ================================================================
+    # Compute metrics
+    # ================================================================
+    avg_loss = total_loss / len(loader)
+    bit_acc = total_correct_bits / total_bits
+
+    micro_f1 = f1_score(y_true, y_pred, average="micro", zero_division=0)
+    macro_f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+    per_class_f1 = f1_score(y_true, y_pred, average=None, zero_division=0).tolist()
+
+    results = {
+        "exp_name": args.exp-name,
+        "split": args.split,
+        "avg_loss": avg_loss,
+        "bit_accuracy": bit_acc,
+        "micro_f1": micro_f1,
+        "macro_f1": macro_f1,
+        "per_class_f1": dict(zip(class_names, per_class_f1)),
+    }
+
+    # ================================================================
+    # Save results
+    # ================================================================
+    results_dir = ROOT / "results"
+    results_dir.mkdir(exist_ok=True)
+
+    json_path = results_dir / f"{args.exp_name}_{args.split}_metrics.json"
+    samples_path = results_dir / f"{args.exp_name}_{args.split}_samples.json"
+    txt_path = results_dir / f"{args.exp_name}_{args.split}.txt"
+
+    json_path.write_text(json.dumps(results, indent=4))
+    samples_path.write_text(json.dumps(saved_samples, indent=4))
+    txt_path.write_text(
+        f"Loss={avg_loss:.4f}, BitAcc={bit_acc:.4f}, "
+        f"MicroF1={micro_f1:.4f}, MacroF1={macro_f1:.4f}\n"
+    )
+
+    print("\nSaved:")
+    print(" -", json_path)
+    print(" -", samples_path)
+    print(" -", txt_path)
+
+
+if __name__ == "__main__":
+    main()
