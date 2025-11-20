@@ -108,7 +108,7 @@ def main():
         all_pred.append(preds)
 
         # Sample examples
-        if len(saved_samples) < args.print-samples:
+        if len(saved_samples) < args.print_samples:
             for i in range(labels.size(0)):
                 if len(saved_samples) < args.print_samples:
                     saved_samples.append({
@@ -132,7 +132,7 @@ def main():
     per_class_f1 = f1_score(y_true, y_pred, average=None, zero_division=0).tolist()
 
     results = {
-        "exp_name": args.exp-name,
+        "exp_name": args.exp_name,
         "split": args.split,
         "avg_loss": avg_loss,
         "bit_accuracy": bit_acc,
