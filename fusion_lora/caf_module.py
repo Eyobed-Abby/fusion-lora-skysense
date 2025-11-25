@@ -29,6 +29,7 @@ class CrossAttentionFusion(nn.Module):
     def forward(self, visual_feat, spectral_feat):
         B, C, H, W = visual_feat.shape
 
+        #spectral features, image_features(clip they have trained) Q = image_features, K=v=s
         # Flatten to sequences
         Q = visual_feat.flatten(2).transpose(1, 2)  # [B, N, C]
         K = spectral_feat.flatten(2).transpose(1, 2)

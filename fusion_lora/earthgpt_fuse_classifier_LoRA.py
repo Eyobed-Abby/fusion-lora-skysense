@@ -31,10 +31,7 @@ from skysense_o.modeling.backbone.skysense_clip import SkySenseCLIP
 
 def build_skysense_clip():
     """
-    Build SkySense-CLIP from a Detectron2 cfg so that:
-      - MODEL.CLIP_CFG_PATH points to clip_config.yml
-      - MODEL.CLIP_CKPT_PATH points to pretrain/skysense_clip.pth
-    and SkySenseCLIP can auto-load the pretrained weights.
+    SkySenseCLIP can auto-load the pretrained weights.
     """
     cfg = get_cfg()
 

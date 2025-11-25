@@ -38,9 +38,7 @@ class BigEarthNetSpectralDataset(Dataset):
 
         df = pd.read_csv(self.root / csv_name)
 
-         # ------------------------------------------------------------------
-        # NEW: keep only rows where the corresponding .pt file actually exists
-        # ------------------------------------------------------------------
+
         all_paths = [self.tensor_dir / f"{fname}.pt" for fname in df["filename"]]
         exists_mask = [p.exists() for p in all_paths]
 
