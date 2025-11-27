@@ -52,7 +52,7 @@ echo
 echo ">>> Running FULL validation evaluation..."
 srun python train_scripts/eval_bigearthnet_clip_lora.py \
     --split val \
-    --batch-size 64 \
+    --batch-size 8 \
     --ckpt "$CKPT" \
     --exp-name "$EXP_NAME"
 
@@ -64,7 +64,7 @@ echo
 echo ">>> Running FULL test evaluation..."
 srun python train_scripts/eval_bigearthnet_clip_lora.py \
     --split test \
-    --batch-size 64 \
+    --batch-size 8 \
     --ckpt "$CKPT" \
     --exp-name "$EXP_NAME"
 
