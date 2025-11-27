@@ -54,7 +54,8 @@ srun python train_scripts/eval_bigearthnet_clip_lora.py \
     --split val \
     --batch-size 8 \
     --ckpt "$CKPT" \
-    --exp-name "$EXP_NAME"
+    --exp-name "$EXP_NAME" \
+    --save-final        # ➕ REQUIRED
 
 echo
 echo "Validation eval done."
@@ -66,7 +67,8 @@ srun python train_scripts/eval_bigearthnet_clip_lora.py \
     --split test \
     --batch-size 8 \
     --ckpt "$CKPT" \
-    --exp-name "$EXP_NAME"
+    --exp-name "$EXP_NAME" \
+    --save-final        # ➕ REQUIRED
 
 echo
 echo "Test eval done."
