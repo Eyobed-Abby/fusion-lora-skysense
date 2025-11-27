@@ -5,6 +5,7 @@ from pathlib import Path
 import argparse
 import json
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 from sklearn.metrics import f1_score
@@ -59,6 +60,9 @@ def main():
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--num-samples", type=int, default=None)
     parser.add_argument("--print-samples", type=int, default=4)
+    parser.add_argument("--save-final", action="store_true",
+                    help="Save full predictions (y_true, y_pred) into results/final/")
+
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -181,6 +185,37 @@ def main():
     json_path = results_dir / f"{args.exp_name}_{args.split}_metrics.json"
     samples_path = results_dir / f"{args.exp_name}_{args.split}_samples.json"
     txt_path = results_dir / f"{args.exp_name}_{args.split}.txt"
+
+    # ================================================================
+    # Optional FINAL save (full ground-truth, predictions + duplicates)
+    # ================================================================
+    if args.save_final:
+        final_dir = ROOT / "results" / "final" / args.exp_name / args.split
+        final_dir.mkdir(parents=True, exist_ok=True)
+
+        # ---- Save predictions ----
+        np.save(final_dir / "y_true.npy", y_true)
+        np.save(final_dir / "y_pred.npy", y_pred)
+
+        # ---- Duplicate the main result files ----
+        # 1. txt summary
+        (final_dir / "summary.txt").write_text(
+            f"Loss={avg_loss:.4f}, BitAcc={bit_acc:.4f}, "
+            f"MicroF1={micro_f1:.4f}, MacroF1={macro_f1:.4f}\n"
+        )
+
+        # 2. metrics.json
+        (final_dir / "metrics.json").write_text(
+            json.dumps(results, indent=4)
+        )
+
+        # 3. samples.json
+        (final_dir / "samples.json").write_text(
+            json.dumps(saved_samples, indent=4)
+        )
+
+        print(f"\n[FINAL SAVE] Full results saved to: {final_dir}")
+
 
     json_path.write_text(json.dumps(results, indent=4))
     samples_path.write_text(json.dumps(saved_samples, indent=4))
