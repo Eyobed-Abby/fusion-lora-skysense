@@ -4,7 +4,7 @@
 ---
 
 ## 📘 Overview
-This project extends the **SkySense-O** open-world remote sensing foundation model to multispectral data using a **Fusion-LoRA** approach.
+**Fine-tuning SkySense for 6-band Sentinel-2 with spectral fusion & LoRA adapters**
 
 We introduce:
 - 🧩 **Spectral Tokenizer** – converts 6-band (RGB + NIR + SWIR) imagery into pseudo-RGB features  
@@ -12,7 +12,10 @@ We introduce:
 - 🔒 **LoRA adapters** – lightweight fine-tuning of the frozen Swin-V2 visual encoder  
 - ⚙️ **Gated Late Fusion (GLF)** – merges representations before decoding  
 
-The goal is to achieve **parameter-efficient domain adaptation** on datasets such as EuroSAT-MS or BigEarthNet-S2, within a compact fine-tuning setup.
+**Goal:**  
+Improve land-cover classification on BigEarthNet-S2 while:
+- Keeping the **pretrained SkySense-CLIP** backbone mostly frozen.
+- Training only small, efficient **fusion + LoRA modules**.
 
 ---
 
