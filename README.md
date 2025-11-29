@@ -23,40 +23,53 @@ Improve land-cover classification on BigEarthNet-S2 while:
 ```
 fusion-lora-skysense/
 │
-├─ external/skysense_o/ # SkySense-O submodule (kept untouched)
+├── datasets/
+│   ├── datasets/                     # (Optional) Original BE data folders
+│   └── scripts/
+│       ├── prepare_bigearthnet_s2.py
+│       ├── prepare_bigearthnet_s2_cli.py
+│       ├── metadata.parquet          # Metadata for BEN-S2 samples
+│       ├── config.json
+│       ├── requirements.txt
+│       └── README.md
 │
-├─ fusion_lora/ # Fusion-LoRA implementation
-│ ├─ model_wrapper.py # main wrapper combining tokenizer + LoRA + fusion
-│ ├─ spectral_tokenizer.py # 6→3 projection (Conv1×1)
-│ ├─ lora_layers.py # LoRA modules and injection helpers
-│ ├─ caf_module.py # cross-attention fusion
-│ ├─ glf_module.py # gated late fusion
-│ └─ utils/
+├── external/skysense_o/              # Cloned SkySense-O project
+│   ├── configs/
+│   ├── datasets/
+│   ├── demo/
+│   ├── skysense_o/
+│   ├── demo.sh
+│   ├── run_train.sh
+│   ├── train_net.py
+│   └── project.html
 │
-├─ datasets/
-│ ├─ utils/prepare_spectral_data.py
-│ ├─ utils/loader.py
-│ ├─ eurosat_ms/train_tensors/ # [6,256,256] .pt tensors
-│ └─ config.json
+├── fusion_lora/
+│   ├── bigearthnet_dataset.py        # Our custom BigEarthNet-S2 Dataset class
+│   ├── caf_module.py                 # CAF module
+│   ├── glf_module.py                 # GLF module
+│   ├── lora_layers.py                # LoRA implementation
+│   ├── model_wrapper.py              # Main wrapper combining backbone + LoRA + fusion modules
+│   ├── spectral_tokenizer.py         # Spectral-to-feature tokenizer
+│   ├── earthgpt_fuse_classifier_LoRA.py
+│   ├── earthgpt_fuse_classifier_checker.py
+│   └── __init__.py
 │
-├─ train_scripts/
-│ ├─ train_fusion_lora.py
-│ ├─ eval_fusion_lora.py
-│ └─ cfgs/
+├── train_scripts/
+│   ├── train_bigearthnet_cls.py      # Baseline SkySense-O on BE-S2
+│   ├── train_fusion_lora.py          # **Main training entry for Spectral-LoRA**
+│   ├── eval_bigearthnet.py           # Evaluation
+│   ├── eval_fusion_lora.py
+│   ├── test_fusion_lora_with_skysense_o.py
+│   ├── demo_inference_bigearthnet.py
+│   └── debug_*                       # Debug tools for backbone, spectral input, etc.
 │
-├─ paper/ # ICIP-style report draft
-│ ├─ ICIP2025_FusionLoRA.tex
-│ └─ figures/
+├── notebooks/                        # Jupyter experiments
+├── results/                          # Metrics, outputs, and plots
+├── jobs/                             # HPC job files (if used)
+├── paper/                            # Figures and tables for the report
 │
-├─ results/
-│ ├─ logs/
-│ └─ checkpoints/
-│
-├─ notebooks/ # demos, visualization, data previews
-│
-├─ .gitignore
-├─ requirements.txt
-└─ README.md
+├── README.md
+└── LICENSE
 ```
 ---
 
