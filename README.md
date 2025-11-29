@@ -20,40 +20,57 @@ The goal is to achieve **parameter-efficient domain adaptation** on datasets suc
 ```
 fusion-lora-skysense/
 │
-├─ external/skysense_o/ # SkySense-O submodule (kept untouched)
+├── fusion_lora/
+│   ├── bigearthnet_dataset.py              # BigEarthNet-S2 dataset loader
+│   ├── spectral_tokenizer.py               # 6-band → 1024-dim spectral tokens
+│   ├── caf_module.py                       # Cross-attention fusion module
+│   ├── glf_module.py                       # Global-local fusion
+│   ├── lora_layers.py                      # Generic LoRA modules
+│   ├── clip_lora_injector.py               # NEW: Injects LoRA into CLIP attention layers
+│   ├── clip_linear_clip.py                 # NEW: Linear projection / classifier for CLIP
+│   ├── model_wrapper.py                    # Combines backbone + tokenizer + CAF + GLF + LoRA
+│   ├── earthgpt_fuse_classifier_LoRA.py    # Old classifier version for fusion
+│   ├── earthgpt_fuse_classifier_checker.py
+│   ├── earthgpt_fuse_classifier_clip_lora.py  # NEW: Classifier when CLIP has LoRA adapters
+│   └── __init__.py
 │
-├─ fusion_lora/ # Fusion-LoRA implementation
-│ ├─ model_wrapper.py # main wrapper combining tokenizer + LoRA + fusion
-│ ├─ spectral_tokenizer.py # 6→3 projection (Conv1×1)
-│ ├─ lora_layers.py # LoRA modules and injection helpers
-│ ├─ caf_module.py # cross-attention fusion
-│ ├─ glf_module.py # gated late fusion
-│ └─ utils/
+├── train_scripts/
+│   ├── train_bigearthnet_cls.py            # Baseline: SkySense-O only
+│   ├── train_bigearthnet_clip_lora_v2.py   # NEW: Train CLIP-visual-LoRA (no spectral fusion)
+│   ├── train_bigearthnet_clip_lora.py
+│   ├── train_fusion_lora.py                # MAIN: Spectral + CLIP-LoRA + CAF + GLF
+│   ├── eval_bigearthnet.py
+│   ├── eval_bigearthnet_clip_lora.py
+│   ├── eval_fusion_lora.py
+│   ├── test_fusion_lora_with_skysense_o.py
+│   ├── demo_inference_bigearthnet.py
+│   └── debug_*                             # Tooling & debugging utilities
 │
-├─ datasets/
-│ ├─ utils/prepare_spectral_data.py
-│ ├─ utils/loader.py
-│ ├─ eurosat_ms/train_tensors/ # [6,256,256] .pt tensors
-│ └─ config.json
+├── datasets/
+│   ├── datasets/                           # (Your local BE-S2 data folders)
+│   └── scripts/
+│       ├── prepare_bigearthnet_s2.py
+│       ├── prepare_bigearthnet_s2_cli.py
+│       ├── metadata.parquet
+│       ├── config.json
+│       └── requirements.txt
 │
-├─ train_scripts/
-│ ├─ train_fusion_lora.py
-│ ├─ eval_fusion_lora.py
-│ └─ cfgs/
+├── external/skysense_o/                    # Original SkySense-O repository
+│   ├── configs/
+│   ├── datasets/
+│   ├── skysense_o/
+│   ├── demo/
+│   ├── run_train.sh
+│   └── train_net.py
 │
-├─ paper/ # ICIP-style report draft
-│ ├─ ICIP2025_FusionLoRA.tex
-│ └─ figures/
+├── paper/                                  # Figures, diagrams for report/paper
+├── results/                                # Metrics, F1 CSVs, confusion stats
+├── notebooks/                              # Jupyter analysis
+├── jobs/                                   # HPC job files (if used)
 │
-├─ results/
-│ ├─ logs/
-│ └─ checkpoints/
-│
-├─ notebooks/ # demos, visualization, data previews
-│
-├─ .gitignore
-├─ requirements.txt
-└─ README.md
+├── README.md
+└── LICENSE
+
 ```
 ---
 
